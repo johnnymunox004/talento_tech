@@ -39,7 +39,8 @@ Finalmente, la información decodificada se presenta al usuario a través de una
 IA Estrecha (Weak AI)
 Definición: La IA estrecha está diseñada para realizar tareas específicas y limitadas. No tiene una comprensión o conciencia general más allá de su función programada.
 Ejemplos: Asistentes virtuales como Siri o Alexa, sistemas de recomendación en plataformas de streaming, algoritmos de reconocimiento de voz.
-Limitaciones: No puede generalizar su conocimiento a otras tareas fuera de su programación específica.
+Limitaciones: No puede generalizar su conocimiento a otras tareas fuera de su programación específica.  
+
 IA General (Strong AI)
 Definición: La IA general, también conocida como inteligencia artificial fuerte, tiene la capacidad de comprender, aprender y aplicar conocimientos de manera general, similar a la inteligencia humana.
 Ejemplos: Hasta la fecha, la IA general es principalmente un concepto teórico. No existen sistemas de IA general plenamente desarrollados.
