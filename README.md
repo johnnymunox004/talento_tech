@@ -14,7 +14,7 @@ Talento Tech es un proyecto enfocado en [describe brevemente tu proyecto]. Este 
 - `assets/` - Imágenes, videos y otros recursos.
 
 ---
-##metodologia de datos 
+## metodologia de datos 
 
 ### Representación binaria 🔢
 Un bit es la unidad más pequeña de información en informática y puede tener uno de dos valores: 0 o 1.
@@ -35,6 +35,15 @@ En el extremo receptor, los datos se reciben y se decodifican según el esquema 
 Presentación de la información 🖥️
 Finalmente, la información decodificada se presenta al usuario a través de una interfaz adecuada, como una pantalla, un altavoz o una impresora.
 
+## Diferencia entre IA General y Estrecha 🤖🧠
+IA Estrecha (Weak AI)
+Definición: La IA estrecha está diseñada para realizar tareas específicas y limitadas. No tiene una comprensión o conciencia general más allá de su función programada.
+Ejemplos: Asistentes virtuales como Siri o Alexa, sistemas de recomendación en plataformas de streaming, algoritmos de reconocimiento de voz.
+Limitaciones: No puede generalizar su conocimiento a otras tareas fuera de su programación específica.
+IA General (Strong AI)
+Definición: La IA general, también conocida como inteligencia artificial fuerte, tiene la capacidad de comprender, aprender y aplicar conocimientos de manera general, similar a la inteligencia humana.
+Ejemplos: Hasta la fecha, la IA general es principalmente un concepto teórico. No existen sistemas de IA general plenamente desarrollados.
+Potencial: Podría realizar cualquier tarea intelectual que un ser humano puede hacer, y potencialmente más.
 
 ---
 
