@@ -15,7 +15,6 @@ Talento Tech es un proyecto enfocado en [describe brevemente tu proyecto]. Este 
 
 ---
 ##metodologia ikigai
-https://github.com/johnnymunox004/talento_tech/raw/adfd5c741fd4317649bacd005cecef49b8ae57e0/ikigai.png
 
 ![Texto alternativo](https://github.com/johnnymunox004/talento_tech/raw/adfd5c741fd4317649bacd005cecef49b8ae57e0/ikigai.png)
 
