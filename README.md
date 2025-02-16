@@ -46,6 +46,60 @@ Definición: La IA general, también conocida como inteligencia artificial fuert
 Ejemplos: Hasta la fecha, la IA general es principalmente un concepto teórico. No existen sistemas de IA general plenamente desarrollados.
 Potencial: Podría realizar cualquier tarea intelectual que un ser humano puede hacer, y potencialmente más.
 
+
+----
+1. Extracción de Datos (ETL):
+
+Fuentes de Datos: Los datos pueden provenir de diversas fuentes, como archivos .csv, .txt, .pdf, APIs y páginas web.
+
+Herramientas y Técnicas:
+
+Archivos .csv y .txt: Se pueden utilizar bibliotecas como pandas en Python para leer y procesar estos archivos.
+Archivos .pdf: Herramientas como PyPDF2 o pdfplumber permiten extraer texto de archivos PDF.
+APIs: Se emplean solicitudes HTTP y bibliotecas como requests en Python para interactuar con APIs y obtener datos.
+Páginas Web: El web scraping se realiza con herramientas como BeautifulSoup o Scrapy para extraer información de páginas web.
+2. Transformación de Datos:
+
+Limpieza de Datos: Eliminación de duplicados, manejo de valores nulos y corrección de inconsistencias.
+
+Normalización y Estandarización: Ajuste de escalas y formatos para uniformizar los datos.
+
+Enriquecimiento: Integración de datos adicionales que aporten valor al análisis.
+
+Codificación: Conversión de variables categóricas en formatos numéricos mediante técnicas como one-hot encoding.
+
+3. Carga de Datos:
+
+Almacenamiento: Los datos transformados se cargan en sistemas de almacenamiento adecuados, como bases de datos SQL, NoSQL o data lakes.
+
+Automatización: Implementación de procesos ETL automatizados para actualizaciones periódicas y consistentes.
+
+4. Desarrollo de Modelos de IA:
+
+Selección de Algoritmos: Elección de modelos adecuados según el tipo de problema (regresión, clasificación, clustering, etc.).
+
+Entrenamiento: Uso de los datos cargados para entrenar los modelos, ajustando hiperparámetros según sea necesario.
+
+Evaluación: Medición del rendimiento del modelo utilizando métricas apropiadas (precisión, recall, F1-score, etc.).
+
+Optimización: Ajuste de modelos y técnicas para mejorar la precisión y eficiencia.
+
+5. Implementación y Despliegue:
+
+Integración: Incorporación del modelo en aplicaciones o sistemas existentes.
+
+Despliegue: Publicación del modelo en entornos de producción, asegurando su accesibilidad y escalabilidad.
+
+Monitoreo: Seguimiento del rendimiento del modelo en tiempo real y ajuste según sea necesario.
+
+6. Mantenimiento y Actualización:
+
+Retraining: Reentrenamiento periódico del modelo con nuevos datos para mantener su relevancia y precisión.
+
+Gestión de Versiones: Control de versiones de modelos y datos para asegurar la trazabilidad y reproducibilidad.
+
+
+
 ---
 
 ## 🚀 **Instalación**
