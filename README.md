@@ -99,12 +99,14 @@ Retraining: Reentrenamiento periódico del modelo con nuevos datos para mantener
 Gestión de Versiones: Control de versiones de modelos y datos para asegurar la trazabilidad y reproducibilidad.
 
 
-
+###docker
+es una plataforma que permite empacar, distribuir y ejecutar aplicaciones dentro de contenedores. Estos contenedores incluyen todo lo necesario para que la aplicación funcione.
 ---
 
 ## 🚀 **Instalación**
-Sigue estos pasos para configurar el proyecto en tu máquina local:
+Sigue estos pasos para configurar docker:
 
 1. Clona el repositorio:
    ```bash
-   git clone https://github.com/johnnymunox004/talento_tech.git
+[   git clone https://github.com/johnnymunox004/talento_tech.git
+](https://www.docker.com/)
