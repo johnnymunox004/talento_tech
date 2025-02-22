@@ -105,7 +105,6 @@ es una plataforma que permite empacar, distribuir y ejecutar aplicaciones dentro
 
 ## 🚀 **Instalación**
 Sigue estos pasos para configurar docker:
-
-1. Clona el repositorio:
+descarga docker:
 [   https://www.docker.com/
 ]
