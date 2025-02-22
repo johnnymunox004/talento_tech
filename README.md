@@ -107,6 +107,5 @@ es una plataforma que permite empacar, distribuir y ejecutar aplicaciones dentro
 Sigue estos pasos para configurar docker:
 
 1. Clona el repositorio:
-   ```bash
 [   https://www.docker.com/
 ]
