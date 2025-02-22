@@ -108,5 +108,5 @@ Sigue estos pasos para configurar docker:
 
 1. Clona el repositorio:
    ```bash
-[   git clone https://github.com/johnnymunox004/talento_tech.git
-](https://www.docker.com/)
+[   https://www.docker.com/
+]
