@@ -108,3 +108,48 @@ Sigue estos pasos para configurar docker:
 descarga docker:
 [   https://www.docker.com/
 ]
+
+
+# Cuadro Comparativo de Arquitecturas de Redes Neuronales
+
+| Característica | CNN Personalizada | MobileNetV2 | ResNet-50 | EfficientNet | VGG16 | YOLO v5 | U-Net | SqueezeNet |
+|---------------|------------------|-------------|-----------|--------------|-------|---------|-------|------------|
+| **Arquitectura** | Arquitectura personalizada diseñada según necesidades específicas | Arquitectura optimizada con bloques de cuello de botella invertido y conexiones residuales | Conexiones residuales profundas que permiten entrenar redes más profundas | Arquitectura escalada uniformemente en ancho, profundidad y resolución | Arquitectura simple y profunda con bloques de convolución secuenciales | Arquitectura específica para detección de objetos con predicciones de una sola pasada | Arquitectura de codificador-decodificador con conexiones de salto | Arquitectura compacta con módulos "fire" que reducen parámetros |
+| **Número de parámetros** | Variable, típicamente 5-20 millones | ~3.5 millones | ~25 millones | Variable según versión (B0: ~5M a B7: ~66M) | ~138 millones | ~7-90 millones (según versión) | ~31 millones | ~1.2 millones |
+| **Tamaño del modelo** | Variable, típicamente 20-80 MB | ~14 MB | ~98 MB | Variable (B0: ~20MB a B7: ~256MB) | ~528 MB | ~27-350 MB | ~124 MB | ~5 MB |
+| **Velocidad de inferencia** | Menor, especialmente en dispositivos móviles | Alta, optimizada para dispositivos limitados | Media | Alta eficiencia según escala | Baja (más lenta) | Muy alta, diseñada para tiempo real | Media-Baja | Alta |
+| **Precisión potencial** | Variable según diseño | Alta, pre-entrenada en ImageNet | Muy alta, estado del arte en su momento | Muy alta, superior a ResNet con menos parámetros | Alta, pero inferior a redes más modernas | Alta para detección de objetos | Excelente para segmentación | Media-Alta, eficiente |
+| **Tiempo de entrenamiento** | Largo, desde cero | Corto con transfer learning | Medio-largo | Medio | Largo | Medio | Medio | Corto |
+| **Consumo de recursos** | Alto | Bajo | Alto | Medio (escalable) | Muy alto | Medio | Alto | Muy bajo |
+| **Facilidad de implementación** | Compleja | Fácil | Media | Media | Fácil | Media | Media | Fácil |
+| **Personalización** | Alta | Media | Media | Media | Baja | Media | Alta | Media |
+| **Cantidad de datos necesaria** | Grande | Pequeña-Media | Media-Grande | Media | Grande | Grande | Media | Pequeña-Media |
+| **Uso en tiempo real** | Requiere optimización | Diseñada para tiempo real | Posible con hardware potente | Escalable según requisitos | Difícil sin optimización | Diseñada para tiempo real | No ideal | Diseñada para tiempo real |
+| **Compatibilidad móvil** | Requiere optimización | Excelente | Limitada | Buena (especialmente B0-B2) | Pobre sin cuantización | Versiones específicas para móviles | Limitada | Excelente |
+| **Mantenimiento** | Alto | Bajo | Bajo | Bajo-Medio | Bajo | Medio | Medio | Bajo |
+
+## Casos de Uso Específicos
+
+| Red Neural | Casos de Uso Ideales |
+|-----------|---------------------|
+| **CNN Personalizada** | • Problemas específicos con requisitos únicos<br>• Cuando se necesita control total sobre la arquitectura<br>• Investigación y desarrollo de nuevas técnicas |
+| **MobileNetV2** | • Aplicaciones móviles y embebidas<br>• Clasificación en tiempo real con recursos limitados<br>• Cuando el tamaño del modelo y la velocidad son cruciales |
+| **ResNet-50** | • Clasificación de imágenes de alta precisión<br>• Base para sistemas de detección y segmentación<br>• Cuando se dispone de suficientes recursos computacionales |
+| **EfficientNet** | • Cuando se busca balance óptimo entre precisión y eficiencia<br>• Sistemas escalables según requisitos computacionales<br>• Aplicaciones comerciales que requieren alta precisión |
+| **VGG16** | • Extracción de características en problemas simples<br>• Benchmarking y líneas base<br>• Enseñanza y aprendizaje de conceptos básicos |
+| **YOLO v5** | • Detección de objetos en tiempo real<br>• Videovigilancia y seguimiento<br>• Conducción autónoma y robótica<br>• Procesamiento de video en tiempo real |
+| **U-Net** | • Segmentación de imágenes médicas<br>• Segmentación semántica precisa<br>• Delineación de estructuras en imágenes científicas<br>• Análisis de imágenes satelitales |
+| **SqueezeNet** | • Dispositivos de IoT con recursos muy limitados<br>• Aplicaciones que requieren modelos extremadamente pequeños<br>• Sistemas embebidos con limitaciones de memoria |
+
+## Aplicaciones en la Detección de Café
+
+| Red Neural | Idoneidad para Detección de Café | Escenario Recomendado |
+|-----------|----------------------------------|----------------------|
+| **CNN Personalizada** | Buena si se entrena específicamente | Cuando se tienen características muy específicas del café a detectar o condiciones ambientales particulares |
+| **MobileNetV2** | Excelente con fine-tuning | Aplicaciones móviles para agricultores que necesitan clasificar granos de café en el campo |
+| **ResNet-50** | Excelente para clasificación detallada | Sistemas industriales para clasificación de alta precisión de calidades de café |
+| **EfficientNet** | Óptima relación precisión/eficiencia | Sistemas de monitoreo de cultivos que deben funcionar en áreas con conectividad limitada |
+| **VGG16** | Buena pero ineficiente | Sistemas experimentales o educativos donde el rendimiento no es prioridad |
+| **YOLO v5** | Excelente para detectar plantas o frutos | Drones o robots que necesitan identificar y contar plantas o frutos de café en tiempo real |
+| **U-Net** | Ideal para segmentación de plantaciones | Análisis de imágenes satelitales para mapeo de plantaciones y evaluación de salud |
+| **SqueezeNet** | Buena para dispositivos de campo simples | Sensores de bajo costo desplegados en campos de café para monitoreo constante |
