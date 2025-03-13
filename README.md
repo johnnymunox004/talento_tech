@@ -109,6 +109,7 @@ descarga docker:
 [   https://www.docker.com/
 ]
 
+la iferencia es la velocidad de prosezamiento de una solicitus
 
 # Cuadro Comparativo de Arquitecturas de Redes Neuronales
 
