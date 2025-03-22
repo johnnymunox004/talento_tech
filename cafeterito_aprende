@@ -1,0 +1,1027 @@
+# Instalar Kaggle CLI (ya está instalado)
+import os
+
+# Crear directorio para las credenciales
+!mkdir -p ~/.kaggle
+
+# Crear archivo de credenciales usando Python estándar
+with open(os.path.expanduser('~/.kaggle/kaggle.json'), 'w') as f:
+    f.write('{\n')
+    f.write('  "username":"jonnnymuoz",\n')
+    f.write('  "key":"45c059690c0304494ceb10b52447dd37"\n')
+    f.write('}')
+
+# Establecer los permisos correctos
+!chmod 600 ~/.kaggle/kaggle.json
+
+# Verificar que el archivo existe
+!ls -la ~/.kaggle/
+
+# Descargar el dataset
+!kaggle datasets download -d sot2542/coffee-bean-dataset-v1
+
+# Crear directorio para el dataset
+!mkdir -p coffee_dataset
+
+# Extraer el archivo zip
+!unzip -q coffee-bean-dataset-v1.zip -d coffee_dataset
+
+# Definir rutas
+path = "coffee_dataset"
+train_path = os.path.join(path, "data_image_png_3024x3024", "coffee_dataset", "train")
+test_path = os.path.join(path, "data_image_png_3024x3024", "coffee_dataset", "test")
+
+# Verificar estructura
+print(f"Ruta de entrenamiento existe: {os.path.exists(train_path)}")
+print(f"Ruta de prueba existe: {os.path.exists(test_path)}")
+
+# Si el directorio existe, contar las imágenes
+if os.path.exists(train_path) and os.path.exists(test_path):
+    print("\nDistribución de imágenes en el conjunto de ENTRENAMIENTO:")
+    for cls in sorted(os.listdir(train_path)):
+        class_path = os.path.join(train_path, cls)
+        if os.path.isdir(class_path):
+            num_images = len([f for f in os.listdir(class_path) if os.path.isfile(os.path.join(class_path, f))])
+            print(f"  • Clase '{cls}': {num_images} imágenes")
+
+    print("\nDistribución de imágenes en el conjunto de PRUEBA:")
+    for cls in sorted(os.listdir(test_path)):
+        class_path = os.path.join(test_path, cls)
+        if os.path.isdir(class_path):
+            num_images = len([f for f in os.listdir(class_path) if os.path.isfile(os.path.join(class_path, f))])
+            print(f"  • Clase '{cls}': {num_images} imágenes")
+else:
+    print("❌ Los directorios train/test no existen en la ruta esperada")
+    print("Explorando estructura disponible:")
+    
+    def explore_dir(dir_path, level=0):
+        if os.path.exists(dir_path):
+            print("  " * level + os.path.basename(dir_path) + "/")
+            if os.path.isdir(dir_path):
+                for item in sorted(os.listdir(dir_path))[:5]:  # Limitar a 5 items
+                    item_path = os.path.join(dir_path, item)
+                    if os.path.isdir(item_path):
+                        explore_dir(item_path, level + 1)
+    
+    explore_dir("coffee_dataset")
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+
+!pip install opencv-python
+
+
+import os
+import numpy as np
+from PIL import Image, ImageEnhance, ImageFilter
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+import time
+
+# Definir rutas
+path = "coffee_dataset"
+train_path = os.path.join(path, "data_image_png_3024x3024", "coffee_dataset", "train")
+test_path = os.path.join(path, "data_image_png_3024x3024", "coffee_dataset", "test")
+
+# 1. Función para aumentar masivamente el dataset - versión avanzada
+def augment_and_extract_beans(folder, target_size=(128, 128), augmentation_factor=5):
+    """
+    Carga imágenes, detecta y extrae granos individuales, y aplica técnicas avanzadas de data augmentation.
+    
+    Args:
+        folder: Carpeta de origen de las imágenes
+        target_size: Tamaño objetivo para las características
+        augmentation_factor: Factor de aumento para cada imagen
+    """
+    images = []
+    labels = []
+    classes = sorted(os.listdir(folder))
+    
+    print(f"Cargando y aumentando dataset de {folder}...")
+    
+    for i, cls in enumerate(classes):
+        print(f"Procesando clase {i+1}/{len(classes)}: {cls}")
+        class_path = os.path.join(folder, cls)
+        
+        if os.path.isdir(class_path):
+            img_files = sorted(os.listdir(class_path))
+            total_files = len(img_files)
+            print(f"  - Encontradas {total_files} imágenes originales")
+            
+            for img_idx, img_name in enumerate(img_files):
+                img_path = os.path.join(class_path, img_name)
+                
+                try:
+                    # Cargar imagen original
+                    orig_img = Image.open(img_path)
+                    
+                    # Procesar la imagen original
+                    process_and_extract_features(orig_img, cls, images, labels, target_size)
+                    
+                    # Aplicar técnicas avanzadas de aumento de datos
+                    augmented_images = generate_augmented_images(orig_img, augmentation_factor)
+                    
+                    # Procesar cada imagen aumentada
+                    for aug_img in augmented_images:
+                        process_and_extract_features(aug_img, cls, images, labels, target_size)
+                    
+                    # Mostrar progreso cada 10 imágenes
+                    if (img_idx + 1) % 10 == 0:
+                        print(f"    Procesado {img_idx + 1}/{total_files} imágenes")
+                
+                except Exception as e:
+                    print(f"Error al procesar {img_path}: {e}")
+    
+    print(f"Dataset final: {len(images)} muestras generadas de {len(img_files) * len(classes)} imágenes originales")
+    return np.array(images), np.array(labels)
+
+def generate_augmented_images(img, count=5):
+    """
+    Genera múltiples versiones aumentadas de una imagen.
+    
+    Args:
+        img: Imagen PIL original
+        count: Número de imágenes aumentadas a generar
+    
+    Returns:
+        Lista de imágenes PIL aumentadas
+    """
+    augmented = []
+    
+    # Parámetros de aumento de datos
+    brightness_range = (0.7, 1.3)
+    contrast_range = (0.7, 1.3)
+    rotation_range = (-20, 20)
+    zoom_factors = [0.9, 0.95, 1.05, 1.1]
+    
+    for i in range(count):
+        # Crear copia para no modificar la original
+        aug_img = img.copy()
+        
+        # 1. Aplicar rotación aleatoria
+        angle = np.random.uniform(*rotation_range)
+        aug_img = aug_img.rotate(angle, resample=Image.BICUBIC, expand=False)
+        
+        # 2. Aplicar cambio de brillo aleatorio
+        brightness_factor = np.random.uniform(*brightness_range)
+        aug_img = ImageEnhance.Brightness(aug_img).enhance(brightness_factor)
+        
+        # 3. Aplicar cambio de contraste aleatorio
+        contrast_factor = np.random.uniform(*contrast_range)
+        aug_img = ImageEnhance.Contrast(aug_img).enhance(contrast_factor)
+        
+        # 4. Aplicar zoom aleatorio
+        if i % 2 == 0:  # Solo en algunas imágenes
+            zoom = np.random.choice(zoom_factors)
+            w, h = aug_img.size
+            new_w, new_h = int(w * zoom), int(h * zoom)
+            
+            # Recortar o rellenar según el factor de zoom
+            if zoom > 1.0:  # Zoom in (recortar)
+                left = (new_w - w) // 2
+                top = (new_h - h) // 2
+                aug_img = aug_img.resize((new_w, new_h), Image.BICUBIC)
+                aug_img = aug_img.crop((left, top, left + w, top + h))
+            else:  # Zoom out (rellenar)
+                paste_img = Image.new(aug_img.mode, (w, h), (0, 0, 0))
+                aug_img = aug_img.resize((new_w, new_h), Image.BICUBIC)
+                left = (w - new_w) // 2
+                top = (h - new_h) // 2
+                paste_img.paste(aug_img, (left, top))
+                aug_img = paste_img
+        
+        # 5. Aplicar filtros ocasionales para simular diferentes condiciones
+        if i % 5 == 0:
+            aug_img = aug_img.filter(ImageFilter.EDGE_ENHANCE)
+        elif i % 5 == 1:
+            aug_img = aug_img.filter(ImageFilter.DETAIL)
+        
+        # 6. Volteo horizontal u ocasionalmente vertical
+        if i % 3 == 0:
+            aug_img = aug_img.transpose(Image.FLIP_LEFT_RIGHT)
+        elif i % 7 == 0:  # Menos frecuente
+            aug_img = aug_img.transpose(Image.FLIP_TOP_BOTTOM)
+            
+        # 7. Ajustar color ocasionalmente
+        if i % 4 == 0:
+            color_factor = np.random.uniform(0.8, 1.2)
+            aug_img = ImageEnhance.Color(aug_img).enhance(color_factor)
+        
+        augmented.append(aug_img)
+    
+    return augmented
+
+def process_and_extract_features(img, class_label, images_list, labels_list, target_size):
+    """
+    Procesa una imagen y extrae características avanzadas.
+    
+    Args:
+        img: Imagen PIL
+        class_label: Etiqueta de clase
+        images_list: Lista donde agregar las características
+        labels_list: Lista donde agregar las etiquetas
+        target_size: Tamaño objetivo para redimensionar
+    """
+    # Redimensionar
+    img_resized = img.resize(target_size)
+    img_array = np.array(img_resized) / 255.0
+    
+    # Extraer características avanzadas
+    features = []
+    
+    # 1. Características de color por canal
+    for channel in range(3):
+        channel_data = img_array[:, :, channel]
+        # Estadísticas básicas
+        features.append(np.mean(channel_data))
+        features.append(np.std(channel_data))
+        features.append(np.max(channel_data))
+        features.append(np.min(channel_data))
+        
+        # Percentiles para capturar distribución
+        features.append(np.percentile(channel_data, 25))
+        features.append(np.percentile(channel_data, 75))
+        
+        # Skewness y kurtosis para capturar forma de distribución
+        features.append(np.mean(((channel_data - np.mean(channel_data)) / np.std(channel_data))**3))  # Skewness
+        features.append(np.mean(((channel_data - np.mean(channel_data)) / np.std(channel_data))**4))  # Kurtosis
+    
+    # 2. Características de textura más completas
+    gray = np.mean(img_array, axis=2)
+    
+    # Estadísticas de textura
+    features.append(np.mean(gray))
+    features.append(np.std(gray))
+    features.append(np.var(gray))
+    
+    # Gradientes para textura
+    gy, gx = np.gradient(gray)
+    grad_mag = np.sqrt(gx**2 + gy**2)
+    features.append(np.mean(grad_mag))
+    features.append(np.std(grad_mag))
+    
+    # 3. Características por región (dividir en 4 cuadrantes)
+    h, w = gray.shape
+    mid_h, mid_w = h//2, w//2
+    
+    # Para cada cuadrante
+    quadrants = [
+        gray[:mid_h, :mid_w],     # Superior izquierdo
+        gray[:mid_h, mid_w:],     # Superior derecho
+        gray[mid_h:, :mid_w],     # Inferior izquierdo
+        gray[mid_h:, mid_w:]      # Inferior derecho
+    ]
+    
+    for q in quadrants:
+        features.append(np.mean(q))
+        features.append(np.std(q))
+    
+    # 4. También incluir una versión aplanada reducida
+    reduced_size = (32, 32)
+    reduced_img = img.resize(reduced_size)
+    reduced_array = np.array(reduced_img) / 255.0
+    reduced_gray = np.mean(reduced_array, axis=2)
+    features.extend(reduced_gray.flatten())
+    
+    # Agregar a las listas
+    images_list.append(np.array(features))
+    labels_list.append(class_label)
+
+# 2. Función para entrenamiento con validación cruzada y optimización de hiperparámetros
+def train_optimized_model(X_train, y_train, cv=5):
+    """
+    Entrena un modelo optimizado con validación cruzada.
+    
+    Args:
+        X_train: Características de entrenamiento
+        y_train: Etiquetas de entrenamiento
+        cv: Número de folds para validación cruzada
+    
+    Returns:
+        El mejor modelo entrenado
+    """
+    print("\nOptimizando hiperparámetros del modelo...")
+    
+    # Definir el pipeline base
+    pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('pca', PCA()),
+        ('model', RandomForestClassifier(random_state=42, n_jobs=-1))
+    ])
+    
+    # Definir el espacio de hiperparámetros
+    param_grid = {
+        'pca__n_components': [0.85, 0.9, 0.95],
+        'model__n_estimators': [150, 200, 250],
+        'model__max_depth': [20, 30, 40],
+        'model__min_samples_split': [2, 5, 8],
+        'model__min_samples_leaf': [1, 2, 4],
+        'model__class_weight': [None, 'balanced']
+    }
+    
+    # Configurar y ejecutar la búsqueda de hiperparámetros
+    grid_search = GridSearchCV(
+        pipeline, param_grid, cv=cv, scoring='accuracy', 
+        n_jobs=-1, verbose=2
+    )
+    
+    start_time = time.time()
+    grid_search.fit(X_train, y_train)
+    training_time = time.time() - start_time
+    
+    print(f"Optimización completada en {training_time:.2f} segundos")
+    print(f"Mejores parámetros: {grid_search.best_params_}")
+    print(f"Mejor puntuación CV: {grid_search.best_score_:.4f}")
+    
+    return grid_search.best_estimator_
+
+# 3. Función para evaluar y analizar el modelo
+def evaluate_model(model, X_test, y_test, encoder, class_names):
+    """
+    Evalúa el modelo y muestra métricas detalladas.
+    """
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Precisión del modelo: {accuracy:.4f}")
+    
+    # Matriz de confusión
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(10, 8))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title('Matriz de Confusión', fontsize=16)
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45, fontsize=12)
+    plt.yticks(tick_marks, class_names, fontsize=12)
+    plt.xlabel('Etiqueta Predicha', fontsize=14)
+    plt.ylabel('Etiqueta Real', fontsize=14)
+    
+    # Agregar valores a la matriz
+    for i in range(len(class_names)):
+        for j in range(len(class_names)):
+            color = "white" if cm[i, j] > cm.max() / 2 else "black"
+            plt.text(j, i, str(cm[i, j]), ha="center", va="center", 
+                     color=color, fontsize=12, fontweight='bold')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Reporte de clasificación
+    print("\nReporte de Clasificación:")
+    print(classification_report(y_test, y_pred, target_names=class_names))
+    
+    # Análisis de confianza por clase
+    class_probas = model.predict_proba(X_test)
+    class_confidences = {}
+    
+    for i, class_name in enumerate(class_names):
+        # Filtrar muestras de esta clase real
+        class_indices = np.where(y_test == i)[0]
+        class_probs = class_probas[class_indices]
+        # Confianza media para la clase correcta
+        correct_confidences = [class_probs[j, i] for j in range(len(class_indices))]
+        
+        class_confidences[class_name] = {
+            'mean': np.mean(correct_confidences) * 100,
+            'min': np.min(correct_confidences) * 100,
+            'max': np.max(correct_confidences) * 100
+        }
+    
+    # Mostrar confianza del modelo por clase
+    print("\nConfianza del modelo por clase:")
+    for cls, conf in class_confidences.items():
+        print(f"  • {cls}: {conf['mean']:.1f}% media (rango: {conf['min']:.1f}%-{conf['max']:.1f}%)")
+
+# 4. Función de predicción mejorada para granos individuales
+def predict_bean(bean_img, model, encoder, target_size=(128, 128)):
+    """
+    Predice la clase de un grano individual.
+    
+    Args:
+        bean_img: Imagen PIL del grano
+        model: Modelo entrenado
+        encoder: Codificador de etiquetas
+        target_size: Tamaño para extraer características
+    
+    Returns:
+        Clase predicha y confianza
+    """
+    # Redimensionar
+    img_resized = bean_img.resize(target_size)
+    img_array = np.array(img_resized) / 255.0
+    
+    # Extraer características de la misma forma que en entrenamiento
+    features = []
+    
+    # Características de color por canal
+    for channel in range(3):
+        channel_data = img_array[:, :, channel]
+        features.append(np.mean(channel_data))
+        features.append(np.std(channel_data))
+        features.append(np.max(channel_data))
+        features.append(np.min(channel_data))
+        features.append(np.percentile(channel_data, 25))
+        features.append(np.percentile(channel_data, 75))
+        features.append(np.mean(((channel_data - np.mean(channel_data)) / np.std(channel_data))**3))
+        features.append(np.mean(((channel_data - np.mean(channel_data)) / np.std(channel_data))**4))
+    
+    # Características de textura
+    gray = np.mean(img_array, axis=2)
+    features.append(np.mean(gray))
+    features.append(np.std(gray))
+    features.append(np.var(gray))
+    
+    # Gradientes para textura
+    gy, gx = np.gradient(gray)
+    grad_mag = np.sqrt(gx**2 + gy**2)
+    features.append(np.mean(grad_mag))
+    features.append(np.std(grad_mag))
+    
+    # Características por cuadrante
+    h, w = gray.shape
+    mid_h, mid_w = h//2, w//2
+    quadrants = [
+        gray[:mid_h, :mid_w], gray[:mid_h, mid_w:],
+        gray[mid_h:, :mid_w], gray[mid_h:, mid_w:]
+    ]
+    for q in quadrants:
+        features.append(np.mean(q))
+        features.append(np.std(q))
+    
+    # Versión aplanada reducida
+    reduced_img = bean_img.resize((32, 32))
+    reduced_array = np.array(reduced_img) / 255.0
+    reduced_gray = np.mean(reduced_array, axis=2)
+    features.extend(reduced_gray.flatten())
+    
+    # Predecir
+    features_array = np.array(features).reshape(1, -1)
+    prediction = model.predict(features_array)[0]
+    predicted_class = encoder.inverse_transform([prediction])[0]
+    confidence = np.max(model.predict_proba(features_array)[0]) * 100
+    
+    return predicted_class, confidence
+
+# 5. Código principal mejorado
+def main():
+    """Función principal para ejecutar el pipeline completo de entrenamiento mejorado."""
+    try:
+        print("=== ENTRENAMIENTO AVANZADO DE CLASIFICADOR DE GRANOS DE CAFÉ ===\n")
+        
+        # 1. Cargar y aumentar el dataset
+        print("Paso 1: Cargando y aumentando el dataset...")
+        X_train, y_train = augment_and_extract_beans(train_path, target_size=(128, 128), augmentation_factor=5)
+        X_test, y_test = augment_and_extract_beans(test_path, target_size=(128, 128), augmentation_factor=2)
+        
+        # 2. Codificar etiquetas
+        print("\nPaso 2: Preparando datos...")
+        label_encoder = LabelEncoder()
+        y_train_encoded = label_encoder.fit_transform(y_train)
+        y_test_encoded = label_encoder.transform(y_test)
+        class_names = label_encoder.classes_
+        print(f"Datos de entrenamiento: {X_train.shape[0]} muestras, {X_train.shape[1]} características")
+        print(f"Datos de prueba: {X_test.shape[0]} muestras")
+        print(f"Clases: {class_names}")
+        
+        # 3. Entrenar modelo optimizado
+        print("\nPaso 3: Entrenando modelo optimizado...")
+        best_model = train_optimized_model(X_train, y_train_encoded, cv=5)
+        
+        # 4. Evaluar modelo
+        print("\nPaso 4: Evaluando modelo...")
+        evaluate_model(best_model, X_test, y_test_encoded, label_encoder, class_names)
+        
+        # 5. Guardar modelo
+        print("\nPaso 5: Guardando modelo...")
+        os.makedirs('saved_model', exist_ok=True)
+        with open('saved_model/advanced_coffee_classifier.pkl', 'wb') as f:
+            pickle.dump(best_model, f)
+        with open('saved_model/advanced_label_encoder.pkl', 'wb') as f:
+            pickle.dump(label_encoder, f)
+        print("Modelo avanzado guardado en saved_model/")
+        
+        return best_model, label_encoder, class_names
+        
+    except Exception as e:
+        print(f"Error en el entrenamiento: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None, None
+
+# Ejecutar el entrenamiento mejorado
+if __name__ == "__main__":
+    model, encoder, classes = main()
+//////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+
+ Instalar OpenCV en el entorno actual
+!pip install opencv-python
+# Instalar bibliotecas necesarias
+!pip install opencv-python scikit-image
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+# Importar las bibliotecas necesarias
+import os
+import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
+from matplotlib import patches
+from skimage import measure, morphology, filters, segmentation, color, feature
+from skimage.color import rgb2lab, rgb2gray
+from skimage.filters import threshold_otsu
+from skimage.segmentation import clear_border
+from skimage.measure import label, regionprops
+
+# Función mejorada para encontrar y analizar directamente la imagen
+def analyze_coffee_image_direct(image_path_input, model, encoder):
+    """
+    Encuentra y analiza directamente una imagen de café.
+    Versión mejorada con detección adaptativa de granos individuales.
+    """
+    # Probar diferentes variaciones de la ruta
+    possible_paths = [
+        image_path_input,                         # Ruta exacta como se proporcionó
+        image_path_input.lstrip('/'),             # Sin leading slash
+        os.path.basename(image_path_input),       # Solo el nombre del archivo
+        f"./{os.path.basename(image_path_input)}" # Nombre del archivo en directorio actual
+    ]
+    
+    # Intenta encontrar la imagen en alguna de las rutas posibles
+    image_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            image_path = path
+            print(f"Imagen encontrada en: {path}")
+            break
+    
+    if not image_path:
+        print(f"No se pudo encontrar la imagen. Por favor, verifica que existe en alguna de estas rutas:")
+        for path in possible_paths:
+            print(f"  - {path}")
+        return None
+    
+    # Cargar imagen con PIL
+    try:
+        img_pil = Image.open(image_path)
+        img_array = np.array(img_pil)
+    except Exception as e:
+        print(f"Error al cargar la imagen: {e}")
+        return None
+    
+    # Verificar que la imagen esté en RGB
+    if len(img_array.shape) < 3 or img_array.shape[2] != 3:
+        print("La imagen no está en formato RGB")
+        return None
+    
+    print("Procesando imagen para detectar granos individuales...")
+    
+    # Convertir a espacio LAB para mejor segmentación
+    img_lab = rgb2lab(img_array)
+    
+    # Usar el canal L (luminancia) para la segmentación
+    l_channel = img_lab[:,:,0]
+    
+    # Aplicar suavizado para reducir el ruido
+    smoothed = filters.gaussian(l_channel, sigma=2)
+    
+    # MEJORA 1: Probar ambas versiones de umbralización
+    thresh = threshold_otsu(smoothed)
+    binary = smoothed < thresh
+    binary_alt = smoothed > thresh
+    
+    # Limpiar bordes y aplicar operaciones morfológicas
+    cleared1 = clear_border(binary)
+    cleared2 = clear_border(binary_alt)
+    
+    # Rellenar huecos y aplicar operaciones morfológicas
+    filled1 = morphology.remove_small_holes(cleared1, area_threshold=500)
+    filled2 = morphology.remove_small_holes(cleared2, area_threshold=500)
+    
+    opened1 = morphology.opening(filled1, morphology.disk(3))
+    opened2 = morphology.opening(filled2, morphology.disk(3))
+    
+    # Etiquetar regiones conectadas para ambas opciones
+    labeled1 = label(opened1)
+    labeled2 = label(opened2)
+    
+    # Extraer propiedades de las regiones
+    regions1 = regionprops(labeled1)
+    regions2 = regionprops(labeled2)
+    
+    # Usar la segmentación que detecta más regiones potencialmente válidas
+    valid_count1 = len([r for r in regions1 if 500 < r.area < 50000])
+    valid_count2 = len([r for r in regions2 if 500 < r.area < 50000])
+    
+    if valid_count1 >= valid_count2:
+        labeled_image = labeled1
+        regions = regions1
+        print(f"Usando método de segmentación #1 (encontró {valid_count1} regiones potenciales)")
+    else:
+        labeled_image = labeled2
+        regions = regions2
+        print(f"Usando método de segmentación #2 (encontró {valid_count2} regiones potenciales)")
+    
+    # MEJORA 2: Rangos de tamaño adaptativos
+    size_ranges = [
+        (500, 10000),   # Granos pequeños
+        (1000, 50000),  # Granos medianos
+        (500, 100000)   # Rango amplio
+    ]
+    
+    valid_regions = []
+    best_range = None
+    
+    for min_size, max_size in size_ranges:
+        temp_regions = [region for region in regions if min_size < region.area < max_size]
+        if len(temp_regions) > len(valid_regions):
+            valid_regions = temp_regions
+            best_range = (min_size, max_size)
+    
+    if not valid_regions:
+        print("No se pudieron detectar granos. Intentando con parámetros extremadamente flexibles...")
+        valid_regions = [region for region in regions if 100 < region.area < 200000]
+        best_range = (100, 200000)
+    
+    print(f"Granos detectados: {len(valid_regions)} (rango de área: {best_range[0]}-{best_range[1]} píxeles)")
+    
+    # MEJORA 3: Preprocesamiento mejorado para cada grano
+    bean_classes = []
+    bean_confidences = []
+    bean_regions = []
+    
+    # Contador para granos rechazados por baja confianza
+    low_confidence_count = 0
+    
+    for region in valid_regions:
+        # Obtener la caja delimitadora del grano
+        minr, minc, maxr, maxc = region.bbox
+        
+        # Expandir ligeramente para incluir todo el grano
+        padding = 8  # Un poco más de padding
+        minr = max(0, minr - padding)
+        minc = max(0, minc - padding)
+        maxr = min(img_array.shape[0], maxr + padding)
+        maxc = min(img_array.shape[1], maxc + padding)
+        
+        # Extraer la región del grano
+        bean_img = img_array[minr:maxr, minc:maxc]
+        
+        # Preprocesar para clasificación
+        try:
+            # Convertir a imagen PIL
+            bean_pil = Image.fromarray(bean_img)
+            
+            # Redimensionar al tamaño esperado por el modelo (64x64)
+            bean_pil = bean_pil.resize((64, 64))
+            
+            # Convertir a array y normalizar
+            bean_array = np.array(bean_pil) / 255.0
+            
+            # Convertir a escala de grises y aplanar
+            bean_gray = np.mean(bean_array, axis=2)
+            bean_flat = bean_gray.flatten().reshape(1, -1)
+            
+            # Predecir
+            prediction = model.predict(bean_flat)[0]
+            predicted_class = encoder.inverse_transform([prediction])[0]
+            confidence = np.max(model.predict_proba(bean_flat)) * 100
+            
+            # MEJORA 4: Filtrar predicciones con baja confianza
+            if confidence > 40:  # Solo aceptar predicciones con confianza razonable
+                bean_classes.append(predicted_class)
+                bean_confidences.append(confidence)
+                bean_regions.append((minc, minr, maxc - minc, maxr - minr))
+            else:
+                low_confidence_count += 1
+            
+        except Exception as e:
+            print(f"Error al procesar un grano: {e}")
+            continue
+    
+    if low_confidence_count > 0:
+        print(f"Se descartaron {low_confidence_count} granos por baja confianza en la predicción.")
+    
+    # Calcular distribución de clases
+    if not bean_classes:
+        print("No se pudieron clasificar granos con suficiente confianza.")
+        return None
+    
+    class_distribution = {}
+    for cls in class_names:
+        count = bean_classes.count(cls)
+        percentage = (count / len(bean_classes)) * 100
+        class_distribution[cls] = percentage
+    
+    # Visualizar resultados
+    # Crear figura para visualización
+    plt.figure(figsize=(20, 10))
+    
+    # Mostrar imagen original con detecciones
+    plt.subplot(1, 2, 1)
+    plt.imshow(img_array)
+    plt.title('Detección de Granos de Café', fontsize=14)
+    
+    # Colores para cada clase
+    colors = {
+        'Dark': 'red',
+        'Medium': 'orange',
+        'Light': 'yellow',
+        'Green': 'lime'
+    }
+    
+    # Dibujar rectángulos alrededor de cada grano detectado
+    for i, (x, y, w, h) in enumerate(bean_regions):
+        bean_class = bean_classes[i]
+        confidence = bean_confidences[i]
+        color = colors.get(bean_class, 'white')
+        
+        rect = patches.Rectangle(
+            (x, y), w, h, 
+            linewidth=2, 
+            edgecolor=color, 
+            facecolor='none'
+        )
+        plt.gca().add_patch(rect)
+        
+        # Agregar etiqueta encima del rectángulo (solo algunas para evitar sobrecarga)
+        if i % 3 == 0:  
+            plt.text(
+                x, y-5, 
+                f"{bean_class[:1]}", 
+                color='white', 
+                fontsize=10, 
+                weight='bold',
+                bbox=dict(facecolor=color, alpha=0.7, pad=0)
+            )
+    
+    plt.axis('off')
+    
+    # Mostrar distribución de clases como gráfico de barras
+    plt.subplot(1, 2, 2)
+    
+    classes = list(class_distribution.keys())
+    percentages = list(class_distribution.values())
+    bar_colors = [colors.get(cls, 'blue') for cls in classes]
+    
+    bars = plt.bar(classes, percentages, color=bar_colors)
+    plt.title('Distribución de Tipos de Grano', fontsize=14)
+    plt.xlabel('Tipo de Grano')
+    plt.ylabel('Porcentaje (%)')
+    plt.ylim([0, 100])
+    
+    # Agregar porcentajes sobre las barras
+    for bar, percentage in zip(bars, percentages):
+        height = bar.get_height()
+        plt.text(
+            bar.get_x() + bar.get_width()/2., 
+            height + 1, 
+            f'{percentage:.1f}%', 
+            ha='center', 
+            va='bottom', 
+            fontsize=12
+        )
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Cálculo de la puntuación de calidad
+    max_percentage = max(class_distribution.values())
+    quality_score = 5 + (max_percentage - 25) / 7.5
+    quality_score = max(0, min(10, quality_score))
+    
+    # Mostrar resumen de resultados
+    print("\n===== ANÁLISIS DE GRANOS DE CAFÉ =====")
+    print(f"Imagen: {os.path.basename(image_path)}")
+    print(f"Total de granos detectados y clasificados: {len(bean_classes)}")
+    print("\nDistribución de tipos de grano:")
+    for cls, percentage in class_distribution.items():
+        print(f"  • {cls}: {percentage:.1f}%")
+    
+    # Determinar calidad general basada en distribución
+    print("\n----- REPORTE DE CALIDAD -----")
+    max_class = max(class_distribution, key=class_distribution.get)
+    print(f"Tipo predominante: {max_class} ({class_distribution[max_class]:.1f}%)")
+    print(f"Puntuación de calidad: {quality_score:.1f}/10")
+    
+    # Sugerencias basadas en la distribución
+    print("\nSugerencias para el procesamiento:")
+    if "Green" in class_distribution and class_distribution["Green"] > 15:
+        print("• Alta presencia de granos verdes. Considere aumentar el tiempo de tostado.")
+    
+    if "Dark" in class_distribution and class_distribution["Dark"] > 60:
+        print("• Predominan los granos oscuros. Vigile que no estén quemados.")
+        
+    if quality_score < 5:
+        print("• La mezcla es heterogénea. Para resultados más consistentes, considere separar los granos por tipo.")
+    else:
+        print("• La mezcla es relativamente homogénea, lo que indica buena consistencia en el proceso.")
+    
+    return class_distribution
+
+# Función para mostrar los resultados más detallados
+def show_detailed_beans(image_path, regions, classes, confidences, encoder, limit=20):
+    """
+    Muestra imágenes detalladas de los granos individuales detectados
+    
+    Args:
+        image_path: Ruta a la imagen original
+        regions: Lista de regiones (x, y, w, h)
+        classes: Lista de clases predichas
+        confidences: Lista de valores de confianza
+        encoder: Codificador de etiquetas
+        limit: Número máximo de granos a mostrar
+    """
+    try:
+        img = Image.open(image_path)
+        img_array = np.array(img)
+        
+        # Limitar el número de granos a mostrar
+        display_count = min(limit, len(regions))
+        
+        # Calcular el número de filas y columnas para el subplot
+        cols = 5
+        rows = (display_count + cols - 1) // cols
+        
+        plt.figure(figsize=(15, rows * 3))
+        plt.suptitle("Granos de café individuales detectados", fontsize=16)
+        
+        for i in range(display_count):
+            x, y, w, h = regions[i]
+            bean_class = classes[i]
+            confidence = confidences[i]
+            
+            # Extraer el grano
+            bean_img = img_array[y:y+h, x:x+w]
+            
+            plt.subplot(rows, cols, i+1)
+            plt.imshow(bean_img)
+            plt.title(f"{bean_class}\n{confidence:.1f}%", fontsize=10)
+            plt.axis('off')
+        
+        plt.tight_layout(rect=[0, 0, 1, 0.97])
+        plt.show()
+        
+    except Exception as e:
+        print(f"Error al mostrar granos detallados: {e}")
+
+# Función para almacenar resultados en un archivo
+def save_results_to_file(image_path, results, output_file="coffee_analysis_results.txt"):
+    """
+    Guarda los resultados del análisis en un archivo de texto
+    
+    Args:
+        image_path: Ruta de la imagen analizada
+        results: Diccionario con la distribución de clases
+        output_file: Archivo de salida
+    """
+    with open(output_file, 'w') as f:
+        f.write("===== ANÁLISIS DE GRANOS DE CAFÉ =====\n")
+        f.write(f"Imagen: {os.path.basename(image_path)}\n")
+        f.write(f"Fecha de análisis: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
+        f.write("Distribución de tipos de grano:\n")
+        for cls, percentage in results.items():
+            f.write(f"  • {cls}: {percentage:.1f}%\n")
+        
+        max_class = max(results, key=results.get)
+        max_percentage = results[max_class]
+        quality_score = 5 + (max_percentage - 25) / 7.5
+        quality_score = max(0, min(10, quality_score))
+        
+        f.write(f"\nTipo predominante: {max_class} ({max_percentage:.1f}%)\n")
+        f.write(f"Puntuación de calidad: {quality_score:.1f}/10\n")
+    
+    print(f"Resultados guardados en {output_file}")
+
+# Código principal para ejecutar el análisis
+import time
+
+try:
+    # Variable global para las clases (debe estar definida si usas el modelo existente)
+    class_names = ['Dark', 'Green', 'Light', 'Medium']
+    
+    # Analizar la imagen directamente con el nombre de archivo simplificado
+    imagen_a_analizar = "AOYcI_Svs_2000x1500__1.jpg"  # Intenta con solo el nombre del archivo
+    
+    print("Iniciando análisis de granos de café...")
+    results = analyze_coffee_image_direct(imagen_a_analizar, model, label_encoder)
+    
+    if results:
+        # Opcional: guardar resultados
+        # save_results_to_file(imagen_a_analizar, results)
+        
+        # Opcional: mostrar granos individuales
+        # show_detailed_beans(imagen_a_analizar, bean_regions, bean_classes, bean_confidences, label_encoder)
+        
+        print("\nAnálisis completado exitosamente.")
+    else:
+        print("\nNo se pudo completar el análisis. Verifique la imagen y los parámetros.")
+
+except Exception as e:
+    print(f"Error durante la ejecución: {e}")
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+def process_uploaded_image(uploaded_file, model, encoder):
+    """
+    Procesa una imagen subida por el usuario.
+    
+    Args:
+        uploaded_file: Archivo subido (objeto de carga de archivos o ruta)
+        model: Modelo entrenado
+        encoder: Codificador de etiquetas
+    """
+    # Si es un path directo
+    if isinstance(uploaded_file, str):
+        if os.path.exists(uploaded_file):
+            return analyze_coffee_batch(uploaded_file, model, encoder)
+        else:
+            print(f"No se encontró el archivo: {uploaded_file}")
+            return None
+    
+    # Si es un objeto de carga de archivos (depende de la implementación)
+    try:
+        # Guardar archivo temporalmente
+        temp_path = 'temp_uploaded_image.jpg'
+        with open(temp_path, 'wb') as f:
+            f.write(uploaded_file['content'])
+        
+        return analyze_coffee_batch(temp_path, model, encoder)
+    
+    except Exception as e:
+        print(f"Error al procesar la imagen subida: {e}")
+        return None
+
+# Función para crear una interfaz simple basada en texto
+def analyze_coffee_image_menu():
+    """Muestra un menú para analizar imágenes de granos de café."""
+    print("\n==== SISTEMA DE ANÁLISIS DE GRANOS DE CAFÉ ====")
+    print("1. Analizar imagen desde ruta de archivo")
+    print("2. Analizar imagen de ejemplo")
+    print("3. Salir")
+    
+    choice = input("\nElige una opción (1-3): ")
+    
+    if choice == '1':
+        img_path = input("Ingresa la ruta completa de la imagen: ")
+        if not os.path.exists(img_path):
+            print(f"No se encontró el archivo: {img_path}")
+            return True
+            
+        analyze_coffee_batch(img_path, model, label_encoder)
+    
+    elif choice == '2':
+        # Usar imágenes de ejemplo con múltiples granos
+        # Nota: Estas imágenes deben contener múltiples granos visibles
+        print("\nClases disponibles para ejemplos: Dark, Green, Light, Medium")
+        cls = input("Ingrese la clase para ver un ejemplo (o 'todas' para ver una de cada): ").strip()
+        
+        if cls.lower() == 'todas':
+            for class_name in ['Dark', 'Green', 'Light', 'Medium']:
+                test_dir = os.path.join(test_path, class_name)
+                files = [f for f in os.listdir(test_dir) if os.path.isfile(os.path.join(test_dir, f))]
+                if files:
+                    example_path = os.path.join(test_dir, files[0])
+                    print(f"\n--- Analizando ejemplo de clase {class_name} ---")
+                    analyze_coffee_batch(example_path, model, label_encoder)
+        else:
+            cls = cls.title()  # Capitalizar primera letra
+            test_dir = os.path.join(test_path, cls)
+            if not os.path.exists(test_dir):
+                print(f"La clase '{cls}' no existe en el conjunto de prueba.")
+            else:
+                files = [f for f in os.listdir(test_dir) if os.path.isfile(os.path.join(test_dir, f))]
+                if files:
+                    example_path = os.path.join(test_dir, files[0])
+                    analyze_coffee_batch(example_path, model, label_encoder)
+    
+    elif choice == '3':
+        print("¡Gracias por usar el sistema!")
+        return False
+    
+    else:
+        print("Opción no válida, intenta de nuevo.")
+    
+    return True
